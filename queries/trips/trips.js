@@ -3,13 +3,29 @@ const db = require("../../db/db");
 module.exports = {
     getAllTrips: async ( req, res, next ) => {
         try {
+            const { userId } = req.query;
+            const { gender } = await db.one(`
+                SELECT users.gender 
+                FROM users
+                WHERE id=$1
+            `, userId);
+
+            const tripGroupTypes = {
+                "male": "Only Men",
+                "female": "Only Women",
+                "non-binary": "Only Non-Binary",
+            }
+
+            const userGroupType = tripGroupTypes[gender.toLowerCase()];
+
             const trips = await db.any(`
                 SELECT users.full_name, users.age, users.profile_picture, 
                 users.country_of_origin, users.gender, trips.*
                 FROM trips
                 LEFT JOIN users on users.id = trips.planner_id
+                WHERE (trips.group_type=$1 OR trips.group_type='Any') AND CAST(trips.date_to AS Date) >= CURRENT_DATE
                 ORDER BY trips.id DESC
-            `);
+            `, userGroupType);
 
             if(trips.length) {
                 res.status(200).json({
